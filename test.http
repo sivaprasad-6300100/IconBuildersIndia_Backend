@@ -1,0 +1,30 @@
+### Test 1 — Admin Login
+POST http://127.0.0.1:8000/api/auth/admin-login/
+Content-Type: application/json
+
+{
+    "phone": "6300100420",
+    "password": "siva6300@"
+}
+
+### Test 2 — Send OTP to client
+POST http://127.0.0.1:8000/api/auth/send-otp/
+Content-Type: application/json
+
+{
+    "phone": "8074902809"
+}
+
+### Test 3 — Verify OTP
+POST http://127.0.0.1:8000/api/auth/verify-otp/
+Content-Type: application/json
+
+{
+    "phone": "8074902809",
+    "otp": "123456"
+}
+
+### Test 4 — Get all users (needs token)
+GET http://127.0.0.1:8000/api/users/
+Authorization: Bearer PASTE_YOUR_TOKEN_HERE
+Content-Type: application/json
