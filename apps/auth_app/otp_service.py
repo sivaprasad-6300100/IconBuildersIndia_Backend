@@ -1,111 +1,75 @@
-import random
 import requests
-from django.utils import timezone
 from django.conf import settings
 from .models import OTPStore
 
-
-def generate_otp():
-    """Generate random 6-digit OTP"""
-    return str(random.randint(100000, 999999))
+BASE_URL = 'https://cpaas.messagecentral.com'
 
 
 def send_otp(phone):
-    """
-    Central OTP sender — works for Client and Contractor
-    Uses Message Central API
-    """
-    # Clean phone number
     phone = phone.replace(' ', '').replace('-', '').replace('+91', '').replace('+', '')
-    if not phone.startswith('91'):
-        phone = '91' + phone
+    if phone.startswith('91'):
+        phone = phone[2:]  # bare 10-digit number
 
-    # Generate OTP
-    otp = generate_otp()
-
-    # Delete old unused OTPs for this phone
-    OTPStore.objects.filter(phone=phone, is_used=False).delete()
-
-    # Save new OTP to database
-    OTPStore.objects.create(phone=phone, otp=otp)
-
-    # Send via Message Central
     try:
-        url = 'https://cpaas.messagecentral.com/verification/v3/send'
-        params = {
-            'countryCode':  '91',
-            'customerId':   settings.MESSAGE_CENTRAL_CUSTOMER_ID,
-            'flowType':     'SMS',
-            'mobileNumber': phone.replace('91', '', 1),
-        }
-        headers = {
-            'authToken': settings.MESSAGE_CENTRAL_AUTH_TOKEN,
-        }
-        response = requests.post(url, params=params, headers=headers, timeout=10)
+        resp = requests.post(f'{BASE_URL}/verification/v3/send', params={
+            'countryCode': '91',
+            'customerId': settings.MESSAGE_CENTRAL_CUSTOMER_ID,
+            'flowType': 'SMS',
+            'mobileNumber': phone,
+            'otpLength': 6,
+        }, headers={'authToken': settings.MESSAGE_CENTRAL_AUTH_TOKEN}, timeout=10)
 
-        if response.status_code == 200:
-            return {
-                'success': True,
-                'message': f'OTP sent to +91 {phone[-10:]}',
-            }
-        else:
-            # API failed — still return success with dev OTP
-            return {
-                'success': True,
-                'message': 'OTP sent successfully',
-                'dev_otp': otp if settings.DEBUG else None,
-            }
+        data = resp.json()
+        print("MC SEND RESPONSE:", data)  # TEMP: watch your terminal for this
 
-    except Exception:
-        # Network error — still works in dev mode
-        return {
-            'success': True,
-            'message': 'OTP sent successfully',
-            'dev_otp': otp if settings.DEBUG else None,
-        }
+        if resp.status_code == 200 and data.get('responseCode') == 200:
+            verification_id = data['data']['verificationId']
+            OTPStore.objects.filter(phone='91' + phone, is_used=False).delete()
+            OTPStore.objects.create(phone='91' + phone, otp=verification_id)
+            return {'success': True, 'message': f'OTP sent to +91 {phone}'}
+
+        return {'success': False, 'message': data.get('message', 'Failed to send OTP')}
+
+    except Exception as e:
+        return {'success': False, 'message': f'SMS provider error: {e}'}
+
+
+
+
+
+
 
 
 def verify_otp(phone, otp):
-    """
-    Central OTP verifier — works for Client and Contractor
-    """
-    # Clean phone
     phone = phone.replace(' ', '').replace('-', '').replace('+91', '').replace('+', '')
-    if not phone.startswith('91'):
-        phone = '91' + phone
+    if phone.startswith('91'):
+        phone = phone[2:]
 
-    # Find latest unused OTP
+    print("VERIFY LOOKUP phone:", '91' + phone, "otp given:", otp)
+    print("ALL ROWS:", list(OTPStore.objects.filter(phone='91' + phone).values('phone', 'otp', 'is_used', 'created_at', 'expires_at')))
+
     try:
-        otp_record = OTPStore.objects.filter(
-            phone=phone,
-            is_used=False,
-        ).latest('created_at')
-
+        record = OTPStore.objects.filter(phone='91' + phone, is_used=False).latest('created_at')
     except OTPStore.DoesNotExist:
-        return {
-            'success': False,
-            'message': 'OTP not found. Please request a new OTP.',
-        }
+        return {'success': False, 'message': 'OTP not found. Please request a new OTP.'}
 
-    # Check expired
-    if not otp_record.is_valid():
-        return {
-            'success': False,
-            'message': 'OTP has expired. Please request a new OTP.',
-        }
+    if not record.is_valid():
+        return {'success': False, 'message': 'OTP has expired. Please request a new OTP.'}
 
-    # Check match
-    if otp_record.otp != otp:
-        return {
-            'success': False,
-            'message': 'Invalid OTP. Please try again.',
-        }
+    resp = requests.get(f'{BASE_URL}/verification/v3/validateOtp', params={
+        'countryCode': '91',
+        'mobileNumber': phone,
+        'verificationId': record.otp,
+        'customerId': settings.MESSAGE_CENTRAL_CUSTOMER_ID,
+        'code': otp,
+    }, headers={'authToken': settings.MESSAGE_CENTRAL_AUTH_TOKEN}, timeout=10)
 
-    # Mark as used
-    otp_record.is_used = True
-    otp_record.save()
+    data = resp.json()
+    print("MC VERIFY RESPONSE:", data)
 
-    return {
-        'success': True,
-        'message': 'OTP verified successfully',
-    }
+    if resp.status_code == 200 and data.get('data', {}).get('verificationStatus') == 'VERIFICATION_COMPLETED':
+        record.is_used = True
+        record.save()
+        return {'success': True, 'message': 'OTP verified successfully'}
+
+    return {'success': False, 'message': 'Invalid OTP. Please try again.'}

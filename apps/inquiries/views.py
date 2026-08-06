@@ -103,3 +103,35 @@ class UpdateInquiryStatusView(APIView):
             'message': f'Inquiry status updated to {inquiry.status}',
             'inquiry': InquirySerializer(inquiry).data,
         })
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from django.utils import timezone
+
+# ── Admin — mark inquiries as viewed ──────────────────────────────────────────
+class MarkInquiriesViewedView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def post(self, request):
+        ids = request.data.get('ids', [])
+        if not ids:
+            return Response({'error': 'No ids provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated = Inquiry.objects.filter(
+            id__in=ids,
+            viewed_at__isnull=True
+        ).update(viewed_at=timezone.now())
+
+        return Response({'updated': updated})

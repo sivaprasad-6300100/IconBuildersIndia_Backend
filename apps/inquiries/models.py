@@ -34,6 +34,7 @@ class Inquiry(models.Model):
     # Admin tracking
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     admin_note   = models.TextField(blank=True)       # admin internal note
+    viewed_at    = models.DateTimeField(null=True, blank=True)   # ← ADD THIS LINE
     assigned_to  = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

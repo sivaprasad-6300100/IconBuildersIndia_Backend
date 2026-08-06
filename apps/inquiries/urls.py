@@ -4,6 +4,7 @@ from .views import (
     InquiryListView,
     InquiryDetailView,
     UpdateInquiryStatusView,
+    MarkInquiriesViewedView,
 )
 
 urlpatterns = [
@@ -14,4 +15,5 @@ urlpatterns = [
     path('',                 InquiryListView.as_view()),           # GET all
     path('<uuid:pk>/',       InquiryDetailView.as_view()),         # GET / DELETE
     path('<uuid:pk>/status/',UpdateInquiryStatusView.as_view()),   # PATCH status
+    path('mark-viewed/', MarkInquiriesViewedView.as_view(), name='mark-inquiries-viewed'),
 ]

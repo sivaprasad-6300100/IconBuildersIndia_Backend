@@ -40,6 +40,7 @@ class Project(models.Model):
 
     total_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    contractor_fee = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # ADD THIS
 
     start_date = models.DateField(null=True, blank=True)
     expected_end_date = models.DateField(null=True, blank=True)
@@ -99,3 +100,38 @@ class Milestone(models.Model):
     def __str__(self):
         
         return f"{self.project.name} - {self.title}"
+
+
+
+
+
+class ClientPayment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='client_payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField()
+    proof_image = models.ImageField(upload_to='payment_proofs/client/', null=True, blank=True)
+    logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.project.name} - ₹{self.amount} (client)"
+
+
+class ContractorPayment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='contractor_payments')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    date = models.DateField()
+    proof_image = models.ImageField(upload_to='payment_proofs/contractor/', null=True, blank=True)
+    logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.project.name} - ₹{self.amount} (contractor)"

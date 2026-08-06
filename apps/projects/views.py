@@ -10,12 +10,14 @@ from apps.portfolio.models import PortfolioProject
 
 from rest_framework import generics, permissions
 from apps.auth_app.permissions import IsAdmin
-from .models import Project, Milestone
+from .models import Project, Milestone, ClientPayment, ContractorPayment
 from .serializers import (
     ProjectListSerializer,
     ProjectDetailSerializer,
     ProjectCreateSerializer,
     MilestoneSerializer,
+    ClientPaymentSerializer,      # ADD
+    ContractorPaymentSerializer,  # ADD
 )
 
 
@@ -99,6 +101,38 @@ class MilestoneListCreateView(generics.ListCreateAPIView):
         return [permissions.IsAuthenticated()]
 
 
+
+class ClientPaymentListCreateView(generics.ListCreateAPIView):
+    serializer_class = ClientPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ClientPayment.objects.filter(project_id=self.kwargs['project_id'])
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_id'], logged_by=self.request.user)
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
+
+class ContractorPaymentListCreateView(generics.ListCreateAPIView):
+    serializer_class = ContractorPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ContractorPayment.objects.filter(project_id=self.kwargs['project_id'])
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_id'], logged_by=self.request.user)
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAdmin()]
+        return [permissions.IsAuthenticated()]
+
 class MilestoneDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     Admin: update status/details.
@@ -175,3 +209,27 @@ class ProjectAnalyticsView(generics.GenericAPIView):
             'revenue_trend': revenue_trend,
             'category_split': category_split,
         })
+
+
+
+
+
+from rest_framework.views import APIView
+
+class MyProjectView(APIView):
+    """
+    Client-only. Returns the logged-in client's single active project,
+    with nested milestones/photos/payments for the dashboard.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'client':
+            return Response({'detail': 'Only clients can access this endpoint.'}, status=403)
+
+        project = Project.objects.filter(client=request.user, is_active=True).first()
+        if not project:
+            return Response({'detail': 'No project has been assigned yet.'}, status=404)
+
+        serializer = ProjectDetailSerializer(project)
+        return Response(serializer.data)

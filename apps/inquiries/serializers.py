@@ -13,7 +13,7 @@ class InquirySerializer(serializers.ModelSerializer):
             'id', 'name', 'phone', 'email', 'city',
             'inquiry_type', 'plot_size', 'message',
             'status', 'admin_note', 'assigned_to', 'assigned_to_name',
-            'source', 'created_at', 'updated_at',
+            'source', 'created_at', 'updated_at','viewed_at', 
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
