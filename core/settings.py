@@ -143,8 +143,8 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     # 'http://localhost:3000',
     # 'http://localhost:5173',
-    'https://iconbuilderindia.com',
-    'https://www.iconbuilderindia.com',
+    'https://iconbuildersindia.com',
+    'https://www.iconbuildersindia.com',
 ]
 CORS_ALLOW_CREDENTIALS = True
 
