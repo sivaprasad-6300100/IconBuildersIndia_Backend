@@ -68,4 +68,4 @@ class CreateContractorSerializer(serializers.ModelSerializer):
 class UpdateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ['name', 'email', 'is_active']
+        fields = ['name', 'phone', 'email', 'is_active']

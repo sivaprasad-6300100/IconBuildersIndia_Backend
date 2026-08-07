@@ -12,7 +12,7 @@ class ProjectPhotoSerializer(serializers.ModelSerializer):
             'id', 'project', 'milestone', 'image', 'image_url', 'caption',
             'category', 'uploaded_by', 'uploaded_by_name', 'is_active', 'created_at',
         ]
-        read_only_fields = ['id', 'uploaded_by', 'created_at']
+        read_only_fields = ['id', 'project', 'uploaded_by', 'created_at','is_active']
 
     def get_image_url(self, obj):
         return obj.image.url if obj.image else None

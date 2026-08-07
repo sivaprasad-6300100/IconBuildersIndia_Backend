@@ -50,10 +50,16 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     milestones = MilestoneSerializer(many=True, read_only=True)
     client_payments = ClientPaymentSerializer(many=True, read_only=True)      # ADD
     contractor_payments = ContractorPaymentSerializer(many=True, read_only=True)  # ADD
+    site_photos = serializers.SerializerMethodField()  # ADD — client/contractor site photos for this project
     balance_due = serializers.ReadOnlyField()
     progress_percent = serializers.ReadOnlyField()
     client_name = serializers.CharField(source='client.name', read_only=True)
     contractor_name = serializers.CharField(source='contractor.name', read_only=True, default=None)
+
+    def get_site_photos(self, obj):
+        from apps.photos.serializers import ProjectPhotoSerializer
+        photos = obj.photos.filter(is_active=True).order_by('-created_at')
+        return ProjectPhotoSerializer(photos, many=True, context=self.context).data
 
     class Meta:
         model = Project
@@ -63,6 +69,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             'status', 'total_budget', 'amount_paid', 'balance_due','contractor_fee',
             'start_date', 'expected_end_date', 'actual_end_date',
             'progress_percent', 'milestones', 'is_active','client_payments', 'contractor_payments',
+            'site_photos',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'amount_paid', 'created_at', 'updated_at']
