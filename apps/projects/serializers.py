@@ -30,17 +30,24 @@ class ContractorPaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id','project', 'logged_by', 'created_at']
 
 
+
+
 class ProjectListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views."""
     client_name = serializers.CharField(source='client.name', read_only=True)
     contractor_name = serializers.CharField(source='contractor.name', read_only=True, default=None)
     progress_percent = serializers.ReadOnlyField()
+    contractor_paid = serializers.SerializerMethodField()  # ADD
+
+    def get_contractor_paid(self, obj):
+        return sum(p.amount for p in obj.contractor_payments.all())
 
     class Meta:
         model = Project
         fields = [
             'id', 'name', 'status', 'client', 'client_name',
             'contractor', 'contractor_name', 'total_budget', 'amount_paid',
+            'contractor_fee', 'contractor_paid',
             'progress_percent', 'is_active', 'created_at',
         ]
 
