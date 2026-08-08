@@ -18,7 +18,7 @@ class UserListView(APIView):
 
     def get(self, request):
         role = request.query_params.get('role')
-        users = User.objects.all(is_deleted=False)
+        users = User.objects.filter(is_deleted=False)
         if role:
             users = users.filter(role=role)
         serializer = UserSerializer(users, many=True)
