@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.portfolio',
     'apps.platform_settings',
     'apps.notifications',
+    'apps.estimator',
 ]
 
 # ── CORS must be first in middleware ──────────────────────────────────────────
