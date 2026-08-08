@@ -35,7 +35,7 @@ class EstimatorQualityTier(models.Model):
         help_text="Applied on top of the city's base rate. 1.00 = same as base rate, 1.70 = 70% more expensive."
     )
     description = models.CharField(
-        max_length=255,
+        max_length=255,  blank=True, default='',
         help_text="What this tier contains, e.g. 'Designer finish, modular interiors'."
     )
     is_active = models.BooleanField(default=True)
