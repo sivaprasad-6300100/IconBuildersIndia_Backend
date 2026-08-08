@@ -39,6 +39,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Status
     is_active  = models.BooleanField(default=True)
     is_staff   = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

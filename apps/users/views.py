@@ -18,7 +18,7 @@ class UserListView(APIView):
 
     def get(self, request):
         role = request.query_params.get('role')
-        users = User.objects.all()
+        users = User.objects.all(is_deleted=False)
         if role:
             users = users.filter(role=role)
         serializer = UserSerializer(users, many=True)
@@ -92,6 +92,7 @@ class UserDetailView(APIView):
         if not user:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         # Soft delete — just deactivate
+        user.is_deleted = True  
         user.is_active = False
         user.save()
         return Response({'message': 'User deactivated successfully'})
