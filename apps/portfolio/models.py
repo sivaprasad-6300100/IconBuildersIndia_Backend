@@ -16,6 +16,7 @@ class PortfolioProject(models.Model):
         ('Row House', 'Row House'),
         ('Plot', 'Plot'),
         ('Commercial', 'Commercial'),
+        ('Real Images', 'Real Images')
     )
     STATUS_CHOICES = (
         ('Planning', 'Planning'),
