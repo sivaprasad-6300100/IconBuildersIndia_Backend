@@ -18,5 +18,6 @@ urlpatterns = [
     path('api/settings/', include('apps.platform_settings.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/estimator/', include('apps.estimator.urls')),
+    path('api/service-requests/', include('apps.service_requests.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
