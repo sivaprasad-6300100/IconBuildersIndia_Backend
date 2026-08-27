@@ -5,10 +5,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.auth_app.permissions import IsAdmin
-from .models import ServiceType, ServiceRequest
+from .models import ServiceType, ServiceRequest, ServiceTypeCityPrice
 from .serializers import (
     ServiceTypeSerializer,
     ServiceTypeAdminSerializer,
+    ServiceTypeCityPriceAdminSerializer,
     ServiceRequestSerializer,
     CreateServiceRequestSerializer,
     UpdateServiceRequestStatusSerializer,
@@ -16,13 +17,15 @@ from .serializers import (
 
 
 # ── Public — service types + admin-set prices, for the request form ──────────
+
 class ServiceTypeConfigView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
         types = ServiceType.objects.filter(is_active=True)
+        city = request.query_params.get('city')
         return Response({
-            'service_types': ServiceTypeSerializer(types, many=True).data,
+            'service_types': ServiceTypeSerializer(types, many=True, context={'city': city}).data,
         })
 
 
@@ -47,6 +50,21 @@ class ServiceTypeAdminViewSet(viewsets.ModelViewSet):
     queryset = ServiceType.objects.all().order_by('order', 'label')
     serializer_class = ServiceTypeAdminSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
+
+
+
+
+# ── Admin — manage per-city price overrides ───────────────────────────────────
+class ServiceTypeCityPriceAdminViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceTypeCityPriceAdminSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        qs = ServiceTypeCityPrice.objects.select_related('service_type').order_by('city_name')
+        service_type_id = self.request.query_params.get('service_type')
+        if service_type_id:
+            qs = qs.filter(service_type_id=service_type_id)
+        return qs
 
 
 # ── Admin — list all submitted requests ───────────────────────────────────────

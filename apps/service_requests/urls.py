@@ -9,10 +9,13 @@ from .views import (
     ServiceRequestDetailView,
     UpdateServiceRequestStatusView,
     MarkServiceRequestsViewedView,
+    ServiceTypeCityPriceAdminViewSet,
 )
 
 router = DefaultRouter()
 router.register(r'admin/service-types', ServiceTypeAdminViewSet, basename='service-requests-admin-types')
+
+router.register(r'admin/city-prices', ServiceTypeCityPriceAdminViewSet, basename='service-requests-admin-city-prices')
 
 urlpatterns = [
     # Public

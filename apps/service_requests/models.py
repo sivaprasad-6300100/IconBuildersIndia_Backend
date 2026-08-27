@@ -68,16 +68,30 @@ class ServiceType(models.Model):
         if self.pricing_mode == 'per_sqft' and not self.price_per_sqft:
             raise ValidationError("Set a price per sq.ft when pricing mode is 'Price per sq.ft'.")
 
-    def calculate_price(self, area_sqft=None):
+    def get_resolved_prices(self, city=None):
+        """Returns (flat_price, price_per_sqft) — the city's override if one
+        exists for this service, otherwise the service's own default."""
+        flat_price, price_per_sqft = self.flat_price, self.price_per_sqft
+        if city:
+            override = self.city_prices.filter(city_name=city.strip().lower()).first()
+            if override:
+                if override.flat_price is not None:
+                    flat_price = override.flat_price
+                if override.price_per_sqft is not None:
+                    price_per_sqft = override.price_per_sqft
+        return flat_price, price_per_sqft
+
+    def calculate_price(self, area_sqft=None, city=None):
         """Server-side price calculation — the price shown to the customer while
         they fill the form is a preview only; this is the number that's actually
         trusted and stored, so admin rate changes can never be bypassed by the client."""
+        flat_price, price_per_sqft = self.get_resolved_prices(city)
         if self.pricing_mode == 'flat':
-            return self.flat_price or 0
+            return flat_price or 0
         if self.pricing_mode == 'per_sqft':
             if not area_sqft or area_sqft <= 0:
                 return 0
-            return round(float(self.price_per_sqft) * float(area_sqft))
+            return round(float(price_per_sqft or 0) * float(area_sqft))
         return 0
 
 
@@ -104,6 +118,7 @@ class ServiceRequest(models.Model):
 
     # Location — typed address plus an optional map pin
     address   = models.CharField(max_length=255, help_text="Typed address / plot details.")
+    city      = models.CharField(max_length=100, blank=True, default='')
     latitude  = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
 
@@ -147,3 +162,42 @@ class ServiceRequest(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.service_type.label} (₹{self.estimated_price})"
+
+
+
+class ServiceTypeCityPrice(models.Model):
+    """Per-city price override for a ServiceType. If no row exists for a given
+    city, the ServiceType's own flat_price / price_per_sqft is used instead —
+    so admin only adds a row for cities that differ from the default."""
+    service_type = models.ForeignKey(
+        ServiceType, related_name='city_prices', on_delete=models.CASCADE
+    )
+    city_name = models.CharField(
+        max_length=100,
+        help_text="Stored lowercase/trimmed automatically. Match the city as it appears from the map (e.g. 'Hyderabad')."
+    )
+    flat_price = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Overrides the flat price for this city. Leave blank to fall back to the default."
+    )
+    price_per_sqft = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Overrides the ₹/sq.ft rate for this city. Leave blank to fall back to the default."
+    )
+
+    class Meta:
+        unique_together = ('service_type', 'city_name')
+        ordering = ['city_name']
+        verbose_name = "Service City Price"
+        verbose_name_plural = "Service City Prices"
+
+    def __str__(self):
+        return f"{self.service_type.label} — {self.city_name}"
+
+    def save(self, *args, **kwargs):
+        self.city_name = self.city_name.strip().lower()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if self.flat_price is None and self.price_per_sqft is None:
+            raise ValidationError("Set at least one of flat price / price per sq.ft for this city override.")

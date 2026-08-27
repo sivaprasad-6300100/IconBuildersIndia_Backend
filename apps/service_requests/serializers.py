@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import ServiceType, ServiceRequest
+from .models import ServiceType, ServiceRequest, ServiceTypeCityPrice
 
 
 # ── Public — feeds the request form's service picker + live price preview ─────
@@ -11,6 +11,15 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
             'id', 'key', 'label', 'description', 'icon',
             'pricing_mode', 'flat_price', 'price_per_sqft',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        city = self.context.get('city')
+        if city:
+            flat_price, price_per_sqft = instance.get_resolved_prices(city)
+            data['flat_price'] = flat_price
+            data['price_per_sqft'] = price_per_sqft
+        return data
 
 
 # ── Admin write serializer (full field access, used by admin CRUD) ────────────
@@ -43,7 +52,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         model = ServiceRequest
         fields = [
             'id', 'name', 'phone', 'email',
-            'address', 'latitude', 'longitude',
+            'address','city', 'latitude', 'longitude',
             'service_type', 'service_type_label', 'area_sqft', 'requirement_text',
             'estimated_price', 'status', 'admin_note',
             'assigned_to', 'assigned_to_name', 'source',
@@ -58,7 +67,7 @@ class CreateServiceRequestSerializer(serializers.ModelSerializer):
         model = ServiceRequest
         fields = [
             'name', 'phone', 'email',
-            'address', 'latitude', 'longitude',
+            'address','city', 'latitude', 'longitude',
             'service_type', 'area_sqft', 'requirement_text', 'source',
         ]
 
@@ -91,11 +100,10 @@ class CreateServiceRequestSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        # Price is always computed here, server-side, from the CURRENT admin
-        # rates — never trusted from anything the client might send.
         service_type = validated_data['service_type']
         area_sqft = validated_data.get('area_sqft')
-        validated_data['estimated_price'] = service_type.calculate_price(area_sqft)
+        city = validated_data.get('city')
+        validated_data['estimated_price'] = service_type.calculate_price(area_sqft, city)
         return super().create(validated_data)
 
 
@@ -103,3 +111,19 @@ class UpdateServiceRequestStatusSerializer(serializers.Serializer):
     """Admin updates status + note"""
     status     = serializers.ChoiceField(choices=['new', 'reviewed', 'contacted', 'converted', 'closed'])
     admin_note = serializers.CharField(required=False, allow_blank=True)
+
+
+
+class ServiceTypeCityPriceAdminSerializer(serializers.ModelSerializer):
+    service_type_label = serializers.CharField(source='service_type.label', read_only=True)
+
+    class Meta:
+        model = ServiceTypeCityPrice
+        fields = ['id', 'service_type', 'service_type_label', 'city_name', 'flat_price', 'price_per_sqft']
+
+    def validate(self, data):
+        flat_price = data.get('flat_price', getattr(self.instance, 'flat_price', None))
+        price_per_sqft = data.get('price_per_sqft', getattr(self.instance, 'price_per_sqft', None))
+        if flat_price is None and price_per_sqft is None:
+            raise serializers.ValidationError("Set at least one of flat price / price per sq.ft.")
+        return data
